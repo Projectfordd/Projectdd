@@ -106,7 +106,7 @@
             }, [isDark]);
 
             const loadArchive = () => {
-                fetch('http://127.0.0.1:8000/api/roads/').then(res => res.json()).then(setRoads);
+                fetch('https://projectdd-hzz9.onrender.com/api/roads/')
             };
 
             const handleLocationChange = (lat, lng, fromArchive = false) => {
@@ -126,7 +126,7 @@
             };
 
             const fetchWeather = async (lat, lng, fromArchive) => {
-                const res = await fetch(`http://127.0.0.1:8000/api/roads/weather-proxy/?lat=${lat}&lng=${lng}`);
+                const res = await fetch(`https://projectdd-hzz9.onrender.com/api/roads/weather-proxy/?lat=${lat}&lng=${lng}`);
                 const data = await res.json();
                 
                 setActiveData({
@@ -144,7 +144,7 @@
             };
 
             const saveRecord = () => {
-                fetch('http://127.0.0.1:8000/api/roads/', {
+                fetch('https://projectdd-hzz9.onrender.com/api/roads/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
