@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-p%p1&-5ymbh2*6v@cid33t1tybuh=i%ib7z2p@i!!1xpd9=+p3'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['projectdd-hzz9.onrender.com', 'localhost', '127.0.0.1']
 
@@ -128,6 +128,8 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
+
+CSRF_TRUSTED_ORIGINS = ['https://projectdd-hzz9.onrender.com']
 
 
 # Static files (CSS, JavaScript, Images)
