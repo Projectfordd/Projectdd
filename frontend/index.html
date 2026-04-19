@@ -107,6 +107,11 @@
 
             const loadArchive = () => {
                 fetch('https://projectdd-hzz9.onrender.com/api/roads/')
+                    .then(res => res.json())
+                    .then(data => {
+                        setRoads(data); // Вот эта строчка отрисовывает карточки!
+                    })
+                    .catch(err => console.error("Ошибка загрузки архива:", err));
             };
 
             const handleLocationChange = (lat, lng, fromArchive = false) => {
