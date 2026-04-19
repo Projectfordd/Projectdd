@@ -27,6 +27,7 @@ DEBUG = False
 
 ALLOWED_HOSTS = ['projectdd-hzz9.onrender.com', 'localhost', '127.0.0.1']
 
+APPEND_SLASH = True
 
 # Application definition
 
