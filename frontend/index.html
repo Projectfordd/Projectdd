@@ -90,8 +90,11 @@
             useEffect(() => {
                 if (!mapRef.current) {
                     mapRef.current = L.map('map', { zoomControl: false }).setView([42.87, 74.59], 12);
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapRef.current);
-                    
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                        attribution: '© OpenStreetMap contributors © CARTO',
+                        subdomains: 'abcd',
+                        maxZoom: 20
+                    }).addTo(mapRef.current);
                     mapRef.current.on('click', e => handleLocationChange(e.latlng.lat, e.latlng.lng));
                 }
                 loadArchive();
