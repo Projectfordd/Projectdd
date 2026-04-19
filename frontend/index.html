@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>RoadWatch Monitor</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+        
+        :root { 
+            --bg-body: #F8F9FA; 
+            --bg-card: #FFFFFF; 
+            --text-main: #1A1C1E; 
+            --border: #E1E3E8;
+            --accent: #0061FF;
+        }
+
+        [data-theme='dark'] { 
+            --bg-body: #111315; 
+            --bg-card: #1A1C1E; 
+            --text-main: #E2E2E6; 
+            --border: #2F3133; 
+        }
+
+        body { 
+            background-color: var(--bg-body); 
+            color: var(--text-main); 
+            font-family: 'Inter', sans-serif; 
+            transition: background 0.3s ease; 
+        }
+
+        .custom-card { 
+            background: var(--bg-card); 
+            border-radius: 16px; 
+            border: 1px solid var(--border);
+            transition: transform 0.2s;
+        }
+
+        .leaflet-container { 
+            border-radius: 16px; 
+            background: #cbd5e1;
+        }
+
+        [data-theme='dark'] .leaflet-tile-layer { filter: invert(100%) hue-rotate(180deg) brightness(95%); }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            border-radius: 12px;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        /* Стиль кнопок истории */
+        .history-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .history-card:hover {
+            border-color: var(--accent);
+            background: rgba(0, 97, 255, 0.05);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        function App() {
+            const [isDark, setIsDark] = useState(false);
+            const [roads, setRoads] = useState([]);
+            const [activeData, setActiveData] = useState(null);
+            const mapRef = useRef(null);
+            const markerRef = useRef(null);
+
+            // Инициализация карты
+            useEffect(() => {
+                if (!mapRef.current) {
+                    mapRef.current = L.map('map', { zoomControl: false }).setView([42.87, 74.59], 12);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapRef.current);
+                    
+                    mapRef.current.on('click', e => handleLocationChange(e.latlng.lat, e.latlng.lng));
+                }
+                loadArchive();
+            }, []);
+
+            useEffect(() => {
+                document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+                if (mapRef.current) mapRef.current.invalidateSize();
+            }, [isDark]);
+
+            const loadArchive = () => {
+                fetch('http://127.0.0.1:8000/api/roads/').then(res => res.json()).then(setRoads);
+            };
+
+            const handleLocationChange = (lat, lng, fromArchive = false) => {
+                if (!mapRef.current) return;
+
+                // Центрирование: сначала обновляем размер контейнера, потом летим в центр
+                mapRef.current.invalidateSize();
+                mapRef.current.flyTo([lat, lng], 14, { animate: true, duration: 1.5 });
+
+                if (markerRef.current) {
+                    markerRef.current.setLatLng([lat, lng]);
+                } else {
+                    markerRef.current = L.marker([lat, lng]).addTo(mapRef.current);
+                }
+
+                fetchWeather(lat, lng, fromArchive);
+            };
+
+            const fetchWeather = async (lat, lng, fromArchive) => {
+                const res = await fetch(`http://127.0.0.1:8000/api/roads/weather-proxy/?lat=${lat}&lng=${lng}`);
+                const data = await res.json();
+                
+                setActiveData({
+                    lat, lng,
+                    temp: Math.round(data.current.temperature_2m),
+                    hum: data.current.relative_humidity_2m,
+                    wind: data.current.wind_speed_10m,
+                    forecast: data.daily.time.slice(0, 4).map((t, i) => ({
+                        day: new Date(t).toLocaleDateString('ru', { weekday: 'short' }),
+                        max: Math.round(data.daily.temperature_2m_max[i]),
+                        min: Math.round(data.daily.temperature_2m_min[i])
+                    })),
+                    isArchive: fromArchive
+                });
+            };
+
+            const saveRecord = () => {
+                fetch('http://127.0.0.1:8000/api/roads/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: `Точка|${activeData.lat.toFixed(2)}|${activeData.lng.toFixed(2)}`,
+                        status: activeData.temp < 5 ? "КРИТИЧНО" : "НОРМА",
+                        temp: activeData.temp
+                    })
+                }).then(() => { loadArchive(); setActiveData(null); });
+            };
+
+            return (
+                <div className="min-h-screen pb-10">
+                    {/* Header */}
+                    <header className="px-6 py-4 flex justify-between items-center max-w-7xl mx-auto">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">R</div>
+                            <h1 className="text-xl font-semibold tracking-tight">RoadWatch <span className="text-blue-500">Monitor</span></h1>
+                        </div>
+                        <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition">
+                            {isDark ? "☀️" : "🌙"}
+                        </button>
+                    </header>
+
+                    <main className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        {/* Левая колонка: Карта и История */}
+                        <div className="lg:col-span-8 space-y-6">
+                            <div id="map" className="h-[450px] shadow-sm z-10 custom-card"></div>
+                            
+                            <div className="custom-card p-6">
+                                <h3 className="text-sm font-semibold mb-4 opacity-60 uppercase tracking-wider">История измерений</h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    {roads.map(r => (
+                                        <div key={r.id} onClick={() => {
+                                            const [_, lt, ln] = r.name.split('|');
+                                            handleLocationChange(parseFloat(lt), parseFloat(ln), true);
+                                        }} className="history-card p-4 flex flex-col gap-1">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-2xl font-bold">{r.temp}°</span>
+                                                <div className={`w-2 h-2 rounded-full ${r.status === 'КРИТИЧНО' ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                                            </div>
+                                            <span className="text-[10px] opacity-50 font-medium uppercase">Запись #{r.id}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Правая колонка: Данные */}
+                        <div className="lg:col-span-4">
+                            {activeData ? (
+                                <div className="custom-card p-6 sticky top-6 shadow-xl border-blue-500/20">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <span className="text-xs font-bold px-2 py-1 bg-blue-100 text-blue-600 rounded-full uppercase">Данные точки</span>
+                                        <span className="text-[10px] opacity-40">{activeData.lat.toFixed(2)}, {activeData.lng.toFixed(2)}</span>
+                                    </div>
+
+                                    <div className="mb-8">
+                                        <div className="text-6xl font-light mb-2">{activeData.temp}°C</div>
+                                        <div className="flex gap-4 text-sm opacity-70">
+                                            <span>💧 {activeData.hum}%</span>
+                                            <span>🌬️ {activeData.wind} м/с</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3 mb-8">
+                                        {activeData.forecast.map((f, i) => (
+                                            <div key={i} className="flex justify-between items-center text-sm py-2 border-b border-gray-50 dark:border-gray-800">
+                                                <span className="capitalize">{f.day}</span>
+                                                <span className="font-medium">{f.max}° / <span className="opacity-40">{f.min}°</span></span>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {!activeData.isArchive ? (
+                                        <button onClick={saveRecord} className="btn-primary w-full py-4 text-sm shadow-lg shadow-blue-500/20">
+                                            Сохранить в базу данных
+                                        </button>
+                                    ) : (
+                                        <button onClick={() => setActiveData(null)} className="w-full py-4 text-sm border border-gray-200 dark:border-gray-800 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800">
+                                            Закрыть обзор
+                                        </button>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="custom-card p-10 text-center flex flex-col items-center justify-center h-64 opacity-50 border-dashed">
+                                    <p className="text-sm">Нажмите на карту, чтобы выбрать участок дороги</p>
+                                </div>
+                            )}
+                        </div>
+                    </main>
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
