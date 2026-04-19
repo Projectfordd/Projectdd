@@ -144,15 +144,28 @@
             };
 
             const saveRecord = () => {
+                // ВАЖНО: убедись, что в конце URL стоит слеш /
                 fetch('https://projectdd-hzz9.onrender.com/api/roads/', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
                     body: JSON.stringify({
                         name: `Точка|${activeData.lat.toFixed(2)}|${activeData.lng.toFixed(2)}`,
                         status: activeData.temp < 5 ? "КРИТИЧНО" : "НОРМА",
                         temp: activeData.temp
                     })
-                }).then(() => { loadArchive(); setActiveData(null); });
+                })
+                .then(res => {
+                    if (res.ok) {
+                        loadArchive(); // Обновляем список
+                        setActiveData(null); // Закрываем карточку
+                    } else {
+                        console.error("Ошибка сохранения:", res.status);
+                    }
+                })
+                .catch(err => console.error("Ошибка сети:", err));
             };
 
             return (
