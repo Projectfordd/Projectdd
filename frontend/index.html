@@ -149,7 +149,6 @@
             };
 
             const saveRecord = () => {
-                // ВАЖНО: убедись, что в конце URL стоит слеш /
                 fetch('https://projectdd-hzz9.onrender.com/api/roads/', {
                     method: 'POST',
                     headers: { 
@@ -159,12 +158,14 @@
                     body: JSON.stringify({
                         name: `Точка|${activeData.lat.toFixed(2)}|${activeData.lng.toFixed(2)}`,
                         status: activeData.temp < 5 ? "КРИТИЧНО" : "НОРМА",
-                        temp: activeData.temp
+                        temp: activeData.temp,
+                        humidity: activeData.hum, // Добавили влажность
+                        wind_speed: activeData.wind // Добавили скорость ветра
                     })
                 })
                 .then(res => {
                     if (res.ok) {
-                        loadArchive(); // Обновляем список
+                        loadArchive(); // Обновляем список внизу
                         setActiveData(null); // Закрываем карточку
                     } else {
                         console.error("Ошибка сохранения:", res.status);
@@ -187,10 +188,8 @@
                     </header>
 
                     <main className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-                        {/* Левая колонка: Карта и История */}
                         <div className="lg:col-span-8 space-y-6">
                             <div id="map" className="h-[450px] shadow-sm z-10 custom-card"></div>
-                            
                             <div className="custom-card p-6">
                                 <h3 className="text-sm font-semibold mb-4 opacity-60 uppercase tracking-wider">История измерений</h3>
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -198,12 +197,17 @@
                                         <div key={r.id} onClick={() => {
                                             const [_, lt, ln] = r.name.split('|');
                                             handleLocationChange(parseFloat(lt), parseFloat(ln), true);
-                                        }} className="history-card p-4 flex flex-col gap-1">
+                                        }} className="history-card p-4 flex flex-col gap-2 transition-all">
                                             <div className="flex justify-between items-center">
-                                                <span className="text-2xl font-bold">{r.temp}°</span>
+                                                <span className="text-2xl font-bold">{r.temp}°C</span>
                                                 <div className={`w-2 h-2 rounded-full ${r.status === 'КРИТИЧНО' ? 'bg-red-500' : 'bg-green-500'}`}></div>
                                             </div>
-                                            <span className="text-[10px] opacity-50 font-medium uppercase">Запись #{r.id}</span>
+                                            {/* Новые данные в карточках истории */}
+                                            <div className="flex gap-3 text-[10px] font-medium opacity-70">
+                                                <span>💧 {r.humidity || 0}%</span>
+                                                <span>🌬️ {r.wind_speed || 0} м/с</span>
+                                            </div>
+                                            <span className="text-[10px] opacity-40 font-medium uppercase">Запись #{r.id}</span>
                                         </div>
                                     ))}
                                 </div>
